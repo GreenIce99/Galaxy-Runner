@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Galaxy Runner 2.0</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#000000">
+  <style>
+    body { margin: 0; background: black; overflow: hidden; }
+    canvas { display: block; }
+    #ui {
+      position: absolute; top: 10px; left: 10px; color: white;
+      font-family: sans-serif; font-size: 18px; z-index: 10;
+    }
+    #toast {
+      position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+      background: rgba(0,0,0,0.8); color: white; padding: 10px 20px;
+      border-radius: 10px; font-family: sans-serif; display: none;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="game"></canvas>
+  <div id="ui">Score: <span id="score">0</span></div>
+  <div id="toast"></div>
+  <script>
+    const canvas = document.getElementById("game");
+    const ctx = canvas.getContext("2d");
+    function resize() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    window.addEventListener("resize", resize);
+    resize();
+
+    // ===== Game State =====
+    let ship = { x: canvas.width/2, y: canvas.height-100, size: 40, speed: 6, shield: 0 };
+    let asteroids = [];
+    let powerups = [];
+    let boss = null;
+    let score = 0;
+    let gameOver = false;
+    let frame = 0;
+
+    // ===== Utils =====
+    function toast(msg) {
+      const el = document.getElementById("toast");
+      el.textContent = msg;
+      el.style.display = "block";
+      setTimeout(()=> el.style.display = "none", 2000);
+    }
+
+    // ===== Controls =====
+    let keys = {};
+    document.addEventListener("keydown", e => keys[e.key] = true);
+    document.addEventListener("keyup", e => keys[e.key] = false);
+
+    // ===== Entities =====
+    function spawnAsteroid() {
+      asteroids.push({ x: Math.random()*canvas.width, y: -20, r: 20+Math.random()*30, vy: 2+Math.random()*3 });
+    }
+    function spawnPowerup() {
+      powerups.push({ x: Math.random()*canvas.width, y: -30, type: ["shield","speed","bomb"][Math.floor(Math.random()*3)], vy: 3 });
+    }
+    function spawnBoss() {
+      boss = { x: canvas.width/2-100, y: 50, w:200, h:100, hp: 50 };
+      toast("⚠️ Boss Incoming!");
+    }
+
+    function activatePowerup(type) {
+      if (type==="shield") { ship.shield = 300; toast("🔰 Shield!"); }
+      if (type==="speed") { ship.speed *= 1.5; setTimeout(()=> ship.speed/=1.5, 5000); toast("⏩ Speed Boost!"); }
+      if (type==="bomb") { asteroids = []; toast("💣 Smart Bomb!"); }
+      if (navigator.vibrate) navigator.vibrate(200);
+    }
+
+    // ===== Draw =====
+    function drawShip() {
+      ctx.save();
+      ctx.translate(ship.x, ship.y);
+      ctx.fillStyle = "cyan";
+      ctx.beginPath();
+      ctx.moveTo(0, -ship.size/2);
+      ctx.lineTo(-ship.size/2, ship.size/2);
+      ctx.lineTo(ship.size/2, ship.size/2);
+      ctx.closePath();
+      ctx.fill();
+      if (ship.shield>0) {
+        ctx.strokeStyle = "rgba(0,255,255,0.6)";
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.arc(0,0,ship.size,0,Math.PI*2);
+        ctx.stroke();
+        ship.shield--;
+      }
+      ctx.restore();
+    }
+
+    // ===== Main Loop =====
+    function loop() {
+      if (gameOver) {
+        ctx.fillStyle="white"; ctx.font="40px sans-serif";
+        ctx.fillText("GAME OVER", canvas.width/2-100, canvas.height/2);
+        return;
+      }
+      ctx.fillStyle="black";
+      ctx.fillRect(0,0,canvas.width,canvas.height);
+
+      // Stars background
+      ctx.fillStyle="white";
+      for (let i=0;i<100;i++) {
+        ctx.fillRect(Math.random()*canvas.width, Math.random()*canvas.height, 2,2);
+      }
+
+      // Move ship
+      if (keys["ArrowLeft"] && ship.x>ship.size) ship.x -= ship.speed;
+      if (keys["ArrowRight"] && ship.x<canvas.width-ship.size) ship.x += ship.speed;
+      if (keys["ArrowUp"] && ship.y>ship.size) ship.y -= ship.speed;
+      if (keys["ArrowDown"] && ship.y<canvas.height-ship.size) ship.y += ship.speed;
+
+      // Asteroids
+      if (frame%50===0) spawnAsteroid();
+      for (let a of asteroids) { a.y+=a.vy; ctx.fillStyle="gray"; ctx.beginPath(); ctx.arc(a.x,a.y,a.r,0,Math.PI*2); ctx.fill(); }
+      asteroids = asteroids.filter(a=>a.y<canvas.height+50);
+
+      // Collision
+      for (let a of asteroids) {
+        let dx=a.x-ship.x, dy=a.y-ship.y;
+        if (Math.hypot(dx,dy)<a.r+ship.size/2) {
+          if (ship.shield<=0) gameOver=true;
+        }
+      }
+
+      // Powerups
+      if (frame%600===0) spawnPowerup();
+      for (let i=powerups.length-1;i>=0;i--) {
+        let p=powerups[i]; p.y+=p.vy;
+        ctx.fillStyle = (p.type==="shield")?"cyan":(p.type==="speed")?"lime":"red";
+        ctx.beginPath(); ctx.arc(p.x,p.y,15,0,Math.PI*2); ctx.fill();
+        if (Math.abs(p.x-ship.x)<20 && Math.abs(p.y-ship.y)<20) {
+          activatePowerup(p.type); powerups.splice(i,1);
+        }
+      }
+
+      // Boss
+      if (score>0 && score%500===0 && !boss) spawnBoss();
+      if (boss) {
+        ctx.fillStyle="magenta"; ctx.fillRect(boss.x,boss.y,boss.w,boss.h);
+        ctx.fillStyle="red"; ctx.fillRect(boss.x,boss.y-10,boss.w*(boss.hp/50),5);
+        if (ship.y<boss.y+boss.h && ship.x>boss.x && ship.x<boss.x+boss.w) gameOver=true;
+      }
+
+      // Ship
+      drawShip();
+
+      // Score
+      score++; document.getElementById("score").textContent=score;
+
+      frame++;
+      requestAnimationFrame(loop);
+    }
+    loop();
+
+    // PWA: register SW
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("sw.js");
+    }
+  </script>
+</body>
+</html>
