@@ -1,14 +1,19 @@
 {
-  "name": "Galaxy Runner",
+  "name": "Galaxy Runner: Ultimate Chaos",
   "short_name": "GalaxyRunner",
-  "start_url": ".",
+  "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#000000",
-  "theme_color": "#000000",
+  "theme_color": "#0f0",
   "icons": [
     {
-      "src": "https://upload.wikimedia.org/wikipedia/commons/3/3a/Gray_circle.svg",
+      "src": "icon-192.png",
       "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
       "type": "image/png"
     }
   ]
