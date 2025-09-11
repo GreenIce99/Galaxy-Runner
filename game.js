@@ -1,6 +1,6 @@
 // ================================
-// Galaxy Runner: Universe Edition – Cosmic Extreme Ultra v5
-// Full 3D, Start Screen, Lives, Score, Highscore, Progressive Difficulty
+// Galaxy Runner: Universe Edition – Cosmic Extreme Ultra v6
+// Fixed start click, arrow keys only, drones, bosses, 3D, countdown
 // ================================
 
 // ----- Canvas Setup -----
@@ -21,7 +21,7 @@ let score = 0;
 let highScore = parseInt(localStorage.getItem('galaxy_high')||'0',10)||0;
 
 // ----- Arrays -----
-let enemies=[], particles=[], stars3D=[];
+let enemies=[], particles=[], stars3D=[], scorePopups=[];
 
 // ----- Timers -----
 let frame=0, countdown=180, waveTimer=0, shake=0;
@@ -97,6 +97,7 @@ function updateShots(){
       const sw=e.w*scale, sh=e.h*scale;
       if(Math.abs(s.x-sx)<sw/2 && Math.abs(s.y-sy)<sh/2){
         e.hp--; spawnParticles(sx,sy,'yellow',10);
+        scorePopups.push({x:sx,y:sy,score:10,life:30});
         if(e.hp<=0){ enemies.splice(j,1); score+=10; playSound('explode'); }
         player.shots.splice(i,1); break;
       }
@@ -127,7 +128,7 @@ function drawStartScreen(){
   ctx.fillText('GALAXY RUNNER',canvas.width/2,150);
   ctx.font='24px monospace';
   ctx.fillText('Press Enter or Click/Tap to Start',canvas.width/2,250);
-  ctx.fillText('Arrow/WASD = Move, Space = Shoot',canvas.width/2,300);
+  ctx.fillText('Arrow keys = Move, Space = Shoot',canvas.width/2,300);
 }
 
 // ----- Countdown -----
@@ -139,23 +140,25 @@ function drawCountdown(){
 // ----- Main Update Loop -----
 function updateAll(){
   frame++; drawStars();
-  // progressive difficulty: spawn faster as score increases
-  if(state===STATE.PLAYING){ waveTimer--; if(waveTimer<=0){ spawnEnemy(); waveTimer=Math.max(20,60-Math.floor(score/100)); } }
 
   if(state===STATE.TITLE){ drawStartScreen(); }
   else if(state===STATE.COUNTDOWN){ countdown--; drawCountdown(); if(countdown<=0) state=STATE.PLAYING; }
   else if(state===STATE.PLAYING){
     // player input
     let moveX=0, moveY=0;
-    if(keys['ArrowLeft']||keys['a']) moveX=-1;
-    if(keys['ArrowRight']||keys['d']) moveX=1;
-    if(keys['ArrowUp']||keys['w']) moveY=-1;
-    if(keys['ArrowDown']||keys['s']) moveY=1;
+    if(keys['ArrowLeft']) moveX=-1;
+    if(keys['ArrowRight']) moveX=1;
+    if(keys['ArrowUp']) moveY=-1;
+    if(keys['ArrowDown']) moveY=1;
     player.x+=moveX*player.speed; player.y+=moveY*player.speed;
     player.x=clamp(player.x,20,canvas.width-20); player.y=clamp(player.y,40,canvas.height-40);
     if(player.cooldown>0) player.cooldown--;
 
+    // spawn enemies progressively
+    waveTimer--; if(waveTimer<=0){ spawnEnemy(); waveTimer=Math.max(20,60-Math.floor(score/100)); }
+
     updateEnemies(); updateShots(); drawPlayer(); drawUI();
+
     for(let e of enemies){
       const scale=500/(500+e.z);
       const sx=e.x*scale+canvas.width/2, sy=e.y*scale+canvas.height/2;
@@ -163,7 +166,13 @@ function updateAll(){
       ctx.fillStyle='#f33'; ctx.fillRect(sx-sw/2,sy-sh/2,sw,sh);
     }
 
-    // update highscore
+    // draw floating score popups
+    for(let i=scorePopups.length-1;i>=0;i--){
+      const sp=scorePopups[i];
+      ctx.fillStyle='yellow'; ctx.font='16px monospace'; ctx.fillText('+'+sp.score,sp.x,sp.y);
+      sp.y-=1; sp.life--; if(sp.life<=0) scorePopups.splice(i,1);
+    }
+
     if(score>highScore){ highScore=Math.floor(score); localStorage.setItem('galaxy_high',highScore); }
   }
 
@@ -178,4 +187,4 @@ canvas.addEventListener('click', ()=>{ if(state===STATE.TITLE) { state=STATE.COU
 
 // ----- Start Game Loop -----
 updateAll();
-console.log('Galaxy Runner Ultra v5 Loaded — Press Enter or Click/Tap to Start!');
+console.log('Galaxy Runner Ultra v6 Loaded — Press Enter or Click/Tap to Start!');
