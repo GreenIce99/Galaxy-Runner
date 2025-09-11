@@ -3,18 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Galaxy Runner: Ultimate Chaos 2.0</title>
-<style>
-body{margin:0;overflow:hidden;background:black;font-family:monospace;touch-action:none;}
-canvas{display:block;}
-#ui{position:absolute;top:10px;left:10px;color:#0f0;font-size:20px;z-index:10;}
-#toast{position:absolute;bottom:20px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.7);color:white;padding:8px 16px;border-radius:8px;display:none;z-index:10;}
-#settingsBtn{position:absolute;top:10px;right:10px;background:#222;color:#0f0;padding:8px 12px;border:none;cursor:pointer;z-index:10;}
-#settingsPanel{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:#111;color:#0f0;padding:20px;border:2px solid #0f0;display:none;z-index:20;}
-#settingsPanel input{margin:5px;}
-#mobileControls{position:absolute;bottom:50px;left:50%;transform:translateX(-50%);display:none;z-index:10;}
-#mobileControls button{width:60px;height:60px;margin:5px;border-radius:50%;background:rgba(0,255,0,0.2);border:2px solid #0f0;color:#0f0;font-weight:bold;font-size:18px;}
-</style>
+<title>Galaxy Runner: Ultimate Chaos</title>
+<link rel="stylesheet" href="style.css">
+<link rel="manifest" href="manifest.json">
 </head>
 <body>
 <canvas id="game"></canvas>
@@ -47,140 +38,9 @@ canvas{display:block;}
 <button id="fireBtn">FIRE</button>
 <button id="specialBtn">⚡</button>
 </div>
+<script src="game.js"></script>
 <script>
-// ===== CANVAS =====
-const canvas=document.getElementById("game");
-const ctx=canvas.getContext("2d");
-function resize(){canvas.width=window.innerWidth;canvas.height=window.innerHeight;}
-window.addEventListener("resize",resize);resize();
-
-// ===== GAME STATES =====
-const STATE={TITLE:0,PLAYING:1,GAMEOVER:2,BOSS:3};
-let gameState=STATE.TITLE;
-
-// ===== PLAYER =====
-let player={x:0,y:0,w:40,h:40,speed:6,shots:[],cooldown:0,lives:3,shield:0,rapid:false,rapidTimer:0,spread:false,spreadTimer:0,drones:[],energyReady:true};
-
-// ===== SCORE =====
-let score=0,highScore=localStorage.getItem("galaxyHighScore")||0;
-
-// ===== ENEMIES & POWERUPS =====
-let enemies=[],enemyCooldown=0,boss=null,powerups=[],particles=[],shake=0;
-
-// ===== CONTROLS =====
-let keys={},mobile={up:false,down:false,left:false,right:false,fire:false,special:false};
-document.addEventListener("keydown",e=>keys[e.key]=true);
-document.addEventListener("keyup",e=>keys[e.key]=false);
-
-// ===== SETTINGS =====
-const musicToggle=document.getElementById("musicToggle");
-const soundToggle=document.getElementById("soundToggle");
-const volumeSlider=document.getElementById("volumeSlider");
-const difficultySelect=document.getElementById("difficulty");
-const controlSelect=document.getElementById("controlType");
-const settingsPanel=document.getElementById("settingsPanel");
-const settingsBtn=document.getElementById("settingsBtn");
-const closeSettings=document.getElementById("closeSettings");
-settingsBtn.onclick=()=>settingsPanel.style.display="block";
-closeSettings.onclick=()=>settingsPanel.style.display="none";
-
-// ===== SOUNDS =====
-const sounds={
-shoot:new Audio("https://freesound.org/data/previews/341/341695_3248244-lq.mp3"),
-explosion:new Audio("https://freesound.org/data/previews/219/219149_4101046-lq.mp3"),
-powerup:new Audio("https://freesound.org/data/previews/331/331912_3248244-lq.mp3"),
-boss:new Audio("https://freesound.org/data/previews/178/178385_3248244-lq.mp3"),
-bgm:new Audio("https://freesound.org/data/previews/458/458410_5121236-lq.mp3")
-};
-sounds.bgm.loop=true;sounds.bgm.volume=0.3;
-
-// ===== MOBILE BUTTONS =====
-const upBtn=document.getElementById("upBtn");
-const downBtn=document.getElementById("downBtn");
-const leftBtn=document.getElementById("leftBtn");
-const rightBtn=document.getElementById("rightBtn");
-const fireBtn=document.getElementById("fireBtn");
-const specialBtn=document.getElementById("specialBtn");
-[upBtn,downBtn,leftBtn,rightBtn,fireBtn,specialBtn].forEach(btn=>{
-btn.addEventListener("touchstart",e=>{e.preventDefault();mobile[btn.id.replace("Btn","").toLowerCase()]=true;});
-btn.addEventListener("touchend",e=>{e.preventDefault();mobile[btn.id.replace("Btn","").toLowerCase()]=false;});
-});
-
-// ===== UTILITY =====
-function toast(msg){const t=document.getElementById("toast");t.textContent=msg;t.style.display="block";setTimeout(()=>t.style.display="none",2000);}
-function spawnParticles(x,y,color,count){for(let i=0;i<count;i++){particles.push({x:x,y:y,vx:(Math.random()-0.5)*4,vy:(Math.random()-0.5)*4,life:30,color:color});}}
-
-// ===== GAME FUNCTIONS =====
-function startGame(){
-gameState=STATE.PLAYING;
-player.x=canvas.width/2;player.y=canvas.height-100;
-player.shots=[];player.cooldown=0;player.lives=3;player.shield=0;
-player.rapid=false;player.rapidTimer=0;player.spread=false;player.spreadTimer=0;
-player.drones=[];player.energyReady=true;
-enemies=[];particles=[];powerups=[];boss=null;score=0;
-sounds.bgm.currentTime=0; if(musicToggle.checked)sounds.bgm.play();
-document.getElementById("mobileControls").style.display=(controlSelect.value==="mobile")?"block":"none";
-}
-
-// ===== HIGH SCORE =====
-function saveHighScore(){if(score>highScore){highScore=score;localStorage.setItem("galaxyHighScore",highScore);}}
-
-// ===== PLACEHOLDER: ENEMY & POWERUP LOGIC =====
-// Full AI, multi-phase bosses, drone shooting, energy attacks can be added here
-
-// ===== DRAW FUNCTIONS =====
-function drawPlayer(){
-ctx.save(); ctx.translate(player.x,player.y);
-ctx.fillStyle="cyan";
-ctx.beginPath(); ctx.moveTo(0,-player.h/2); ctx.lineTo(-player.w/2,player.h/2); ctx.lineTo(player.w/2,player.h/2); ctx.closePath(); ctx.fill();
-if(player.shield>0){ctx.strokeStyle="rgba(0,255,255,0.6)";ctx.lineWidth=4;ctx.beginPath();ctx.arc(0,0,player.w,0,Math.PI*2);ctx.stroke();}
-ctx.restore();
-}
-
-// ===== MAIN LOOP =====
-let frame=0;
-function loop(){
-ctx.setTransform(1,0,0,1,0,0);
-ctx.fillStyle="black"; ctx.fillRect(0,0,canvas.width,canvas.height);
-ctx.fillStyle="white"; for(let i=0;i<80;i++) ctx.fillRect(Math.random()*canvas.width,Math.random()*canvas.height,2,2);
-
-if(gameState===STATE.TITLE){
-ctx.fillStyle="#0f0"; ctx.font="50px monospace"; ctx.textAlign="center";
-ctx.fillText("GALAXY RUNNER 2.0",canvas.width/2,canvas.height/2-50);
-ctx.font="25px monospace"; if(Math.floor(frame/30)%2===0) ctx.fillText("PRESS ENTER TO START",canvas.width/2,canvas.height/2+20);
-ctx.fillText("HIGH SCORE: "+highScore,canvas.width/2,canvas.height/2+60);
-} else if(gameState===STATE.PLAYING){
-// Movement
-let moveX=0,moveY=0;
-if(controlSelect.value==="keyboard"){if(keys["ArrowLeft"]||keys["a"]) moveX=-1;if(keys["ArrowRight"]||keys["d"]) moveX=1;if(keys["ArrowUp"]||keys["w"]) moveY=-1;if(keys["ArrowDown"]||keys["s"]) moveY=1;}
-else{if(mobile.left) moveX=-1;if(mobile.right) moveX=1;if(mobile.up) moveY=-1;if(mobile.down) moveY=1;}
-player.x+=moveX*player.speed; player.y+=moveY*player.speed;
-if(player.x<player.w/2) player.x=player.w/2;if(player.x>canvas.width-player.w/2) player.x=canvas.width-player.w/2;
-if(player.y<player.h/2) player.y=player.h/2;if(player.y>canvas.height-player.h/2) player.y=canvas.height-player.h/2;
-
-// Shooting placeholder (add shooting & drones logic here)
-
-// Draw player
-drawPlayer();
-
-// UI
-document.getElementById("ui").innerText="Score: "+score+" Lives: "+player.lives+" High: "+highScore;
-frame++;
-requestAnimationFrame(loop);
-} else if(gameState===STATE.GAMEOVER){
-ctx.fillStyle="#0f0"; ctx.font="50px monospace"; ctx.textAlign="center";
-ctx.fillText("GAME OVER",canvas.width/2,canvas.height/2-50);
-ctx.font="25px monospace"; ctx.fillText("PRESS ENTER TO PLAY AGAIN",canvas.width/2,canvas.height/2+20);
-ctx.fillText("HIGH SCORE: "+highScore,canvas.width/2,canvas.height/2+60);
-}
-}
-loop();
-
-// ===== START / RESTART =====
-document.addEventListener("keydown",e=>{
-if(gameState===STATE.TITLE&&e.key==="Enter") startGame();
-if(gameState===STATE.GAMEOVER&&e.key==="Enter"){saveHighScore();startGame();}
-});
+if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js');}
 </script>
 </body>
 </html>
