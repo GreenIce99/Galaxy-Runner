@@ -1,5 +1,5 @@
 // ================================
-// Galaxy Runner: Universe Edition 3D XL – Cosmic Ultimate
+// Galaxy Runner: Universe Edition 3D XL – Cosmic Extreme
 // ================================
 
 const canvas = document.getElementById('game');
@@ -12,7 +12,10 @@ const STATE = { TITLE:0, COUNTDOWN:1, PLAYING:2, GAMEOVER:3 };
 let state = STATE.TITLE;
 
 // ----- Player -----
-const player = { x:canvas.width/2, y:canvas.height-150, w:36, h:36, speed:6, shots:[], cooldown:0, lives:3, shield:0, rapid:false, spread:false, drones:[], charge:0 };
+const player = {
+  x:canvas.width/2, y:canvas.height-150, w:36, h:36, speed:8, shots:[],
+  cooldown:0, lives:3, shield:0, rapid:false, spread:false, drones:[], charge:0
+};
 
 // ----- Score -----
 let score = 0;
@@ -29,7 +32,7 @@ const keys={};
 document.addEventListener('keydown', e=>keys[e.key]=true);
 document.addEventListener('keyup', e=>keys[e.key]=false);
 
-// ----- Sounds -----
+// ----- Audio -----
 const SND = {
   shoot:new Audio('https://freesound.org/data/previews/341/341695_3248244-lq.mp3'),
   explode:new Audio('https://freesound.org/data/previews/219/219149_4101046-lq.mp3'),
@@ -37,7 +40,8 @@ const SND = {
   boss:new Audio('https://freesound.org/data/previews/178/178385_3248244-lq.mp3'),
   bgm:new Audio('https://freesound.org/data/previews/458/458410_5121236-lq.mp3')
 };
-for(let k in SND) if(SND[k]) SND[k].volume=0.3; SND.bgm.loop=true; SND.bgm.volume=0.4;
+for(let k in SND) if(SND[k]) SND[k].volume=0.3;
+SND.bgm.loop=true; SND.bgm.volume=0.4;
 
 // ----- Utilities -----
 function rand(min,max){ return Math.random()*(max-min)+min; }
@@ -46,25 +50,20 @@ function playSound(name){ try{ if(SND[name]){ SND[name].currentTime=0; SND[name]
 function spawnParticles(x,y,color,count=20){
   for(let i=0;i<count;i++) particles.push({
     x,y,
-    vx:rand(-3,3),
-    vy:rand(-3,3),
-    vz:rand(-2,2),
+    vx:rand(-3,3), vy:rand(-3,3), vz:rand(-2,2),
     life:rand(20,50),
     color
   });
 }
 
-// ----- Initialize Starfield -----
-for(let i=0;i<800;i++){
-  stars3D.push({ x:rand(-canvas.width/2,canvas.width/2), y:rand(-canvas.height/2,canvas.height/2), z:rand(1,1000) });
+// ----- Starfield 3D -----
+for(let i=0;i<1000;i++){
+  stars3D.push({ x:rand(-canvas.width,canvas.width), y:rand(-canvas.height,canvas.height), z:rand(1,1000) });
 }
-
-// ----- Starfield Update -----
 function updateStars3D(){
   ctx.fillStyle='black'; ctx.fillRect(0,0,canvas.width,canvas.height);
   for(let s of stars3D){
-    s.z-=8;
-    if(s.z<=0){ s.z=1000; s.x=rand(-canvas.width/2,canvas.width/2); s.y=rand(-canvas.height/2,canvas.height/2);}
+    s.z-=8; if(s.z<=0){ s.z=1000; s.x=rand(-canvas.width,canvas.width); s.y=rand(-canvas.height,canvas.height);}
     const sx=(s.x/s.z)*500 + canvas.width/2;
     const sy=(s.y/s.z)*500 + canvas.height/2;
     const size=(1-s.z/1000)*3;
@@ -161,7 +160,7 @@ function updateBoss(){
     boss.x = canvas.width/2 - boss.w/2 + Math.sin(boss.timer*0.02)*100;
     boss.y = 50;
   }
-  // Boss shooting logic here (can be expanded)
+  // Boss shooting logic can be added here
 }
 
 // ----- Main Update -----
@@ -190,4 +189,4 @@ function updateAll(){
 
 // ----- Start Game -----
 updateAll();
-console.log('Galaxy Runner Universe 3D XL Cosmic Ultimate Loaded — Press Space to shoot!');
+console.log('Galaxy Runner Universe 3D XL Cosmic Extreme Loaded — Press Space to shoot!');
